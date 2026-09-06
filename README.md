@@ -34,7 +34,7 @@ ausgeschaltet, sind sie weg.
 In Logsy Voice unter **Integrationen › Add-ons** eintragen:
 
 ```
-reezy-development/logsy-voice-verlauf
+logsy/logsy-voice-verlauf
 ```
 
 Logsy Voice holt die neueste Veröffentlichung, packt sie nach
