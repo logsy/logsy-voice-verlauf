@@ -1,0 +1,38 @@
+[package]
+name = "logsy-voice-verlauf"
+version = "1.0.0"
+description = "Logsy-Voice-Add-on: hebt die zuletzt diktierten Sätze auf"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+# Der Name hier und `entry` in `addon.json` müssen zusammenpassen: Was cargo
+# unter `target/release/` ablegt, ist genau die Datei, die Logsy Voice startet.
+
+[[bin]]
+name = "logsy-voice-verlauf"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
+
+# Nur für die Zwischenablage. Es gibt fertige Kisten dafür, die alle drei
+# Betriebssysteme bedienen — hier läuft aber nur Windows, und der Weg dorthin
+# sind knapp fünfzig Zeilen. Siehe `src/zwischenablage.rs`.
+[dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_Foundation",
+    "Win32_System_DataExchange", # Die Zwischenablage selbst
+    "Win32_System_Memory",       # Der Block, den man ihr überlässt
+    "Win32_System_Ole",          # CF_UNICODETEXT
+]
+
+# Ein Add-on wird heruntergeladen. Jedes Kilobyte davon lädt jemand herunter,
+# der nur seine letzten Sätze wiedersehen will.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

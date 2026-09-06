@@ -1,0 +1,31 @@
+{
+  "formatVersion": 1,
+  "id": "verlauf",
+  "name": "Verlauf",
+  "version": "1.0.0",
+  "description": "Hebt die zuletzt diktierten Sätze auf und legt sie auf Klick in die Zwischenablage.",
+  "author": "Logsy Voice",
+  "entry": "logsy-voice-verlauf.exe",
+  "icon": "verlauf.svg",
+  "events": [
+    "transcript.final"
+  ],
+  "view": {
+    "label": "Letztes Diktat",
+    "empty": "Noch nichts diktiert. Was du sagst, steht danach hier."
+  },
+  "settings": [
+    {
+      "key": "anzahl",
+      "label": "Wie viele aufgehoben werden",
+      "description": "Alles darüber hinaus fällt hinten heraus.",
+      "type": "choice",
+      "default": "20",
+      "options": [
+        { "value": "5", "label": "5" },
+        { "value": "20", "label": "20" },
+        { "value": "100", "label": "100", "description": "Auch das bleibt im Arbeitsspeicher." }
+      ]
+    }
+  ]
+}

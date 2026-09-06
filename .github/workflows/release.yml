@@ -1,0 +1,103 @@
+# Baut das Add-on und hängt das Archiv an die Veröffentlichung.
+#
+# Der Sinn: Auf GitHub liegt **Quellcode**. Niemand lädt eine Programmdatei von
+# seinem Rechner hoch — die entsteht hier, sichtbar, aus dem Stand, der im
+# Repository liegt. Wer wissen will, was in dem ZIP steckt, liest den Code
+# daneben und den Ablauf dieses Bauvorgangs.
+#
+# Auslöser ist ein Namensschild: `git tag v1.0.0 && git push --tags`.
+
+name: Veröffentlichung
+
+on:
+  push:
+    # Ein Namensschild veröffentlicht. Ein gewöhnlicher Anstoss baut nur — ein
+    # Add-on, das nicht übersetzt, soll auffallen, bevor jemand ein
+    # Namensschild vergibt.
+    tags: ["v*"]
+    branches: [main]
+  # Zum Ausprobieren von Hand — dann entsteht kein Release, nur ein Artefakt.
+  workflow_dispatch:
+
+permissions:
+  # Nötig, um das Archiv an die Veröffentlichung zu hängen. Mehr nicht.
+  contents: write
+
+jobs:
+  bauen:
+    # Ein Logsy Voice-Add-on läuft unter Windows, also wird es dort gebaut.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Kennung, Fassung, Programmdatei und Sinnbild stehen bereits im
+      # Beschreibungsblatt. Sie hier noch einmal einzutragen hiesse, zwei
+      # Wahrheiten zu pflegen — und irgendwann weichen sie voneinander ab.
+      - name: Beschreibungsblatt lesen
+        id: manifest
+        shell: pwsh
+        run: |
+          $m = Get-Content addon.json -Raw | ConvertFrom-Json
+          "id=$($m.id)"           >> $env:GITHUB_OUTPUT
+          "version=$($m.version)" >> $env:GITHUB_OUTPUT
+          "entry=$($m.entry)"     >> $env:GITHUB_OUTPUT
+          "icon=$($m.icon)"       >> $env:GITHUB_OUTPUT
+
+      # Logsy Voice erkennt am Namen der Veröffentlichung, ob es etwas Neueres
+      # gibt, nimmt die Fassung aber aus dem Paket. Gehen die beiden
+      # auseinander, meldet die Anwendung ewig eine Aktualisierung, die nach
+      # dem Installieren wieder da ist. Deshalb bricht der Bauvorgang hier ab
+      # und nicht erst beim Nutzer.
+      - name: Fassung gegen das Namensschild halten
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $schild = "${{ github.ref_name }}" -replace '^v', ''
+          $blatt  = "${{ steps.manifest.outputs.version }}"
+          if ($schild -ne $blatt) {
+            throw "Das Namensschild sagt $schild, addon.json sagt $blatt. Beides muss dasselbe sagen."
+          }
+
+      - name: Bauen
+        run: cargo build --release
+
+      # Das Archiv enthält die drei Dateien in seiner **Wurzel**, ohne Ordner
+      # darum herum. Logsy Voice packt es unverändert nach
+      # %APPDATA%\de.logsy.voice\addons\<kennung>\ aus.
+      - name: Archiv schnüren
+        id: paket
+        shell: pwsh
+        run: |
+          $id      = "${{ steps.manifest.outputs.id }}"
+          $version = "${{ steps.manifest.outputs.version }}"
+          $entry   = "${{ steps.manifest.outputs.entry }}"
+          $icon    = "${{ steps.manifest.outputs.icon }}"
+
+          New-Item -ItemType Directory paket | Out-Null
+          Copy-Item addon.json paket/
+          Copy-Item "target/release/$entry" paket/
+          if ($icon) { Copy-Item $icon paket/ }
+
+          $archiv = "logsy-voice-$id-$version.zip"
+          Compress-Archive -Path paket/* -DestinationPath $archiv
+          "archiv=$archiv" >> $env:GITHUB_OUTPUT
+
+      - name: An die Veröffentlichung hängen
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ${{ steps.paket.outputs.archiv }}
+
+      # Von Hand angestossen gibt es kein Release — aber ein Archiv zum
+      # Herunterladen und Ausprobieren.
+      - name: Zum Ausprobieren ablegen
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.manifest.outputs.id }}
+          path: ${{ steps.paket.outputs.archiv }}
