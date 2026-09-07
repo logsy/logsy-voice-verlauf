@@ -18,15 +18,15 @@ Letztes Diktat
 Diese Sätze liegen im Arbeitsspeicher. Wird das Add-on
 ausgeschaltet, sind sie weg.
 
-  gerade eben                                    ⧉   🗑
+  gerade eben                                ⧉   ✓   🗑
   Und das der zweite, mit Umlauten.
   8 Wörter
 
-  vor 3 Minuten                                  ⧉   🗑
+  14:32                                      ⧉   ✓   🗑
   Ein längeres Diktat über mehrere Zeilen.
-  27 Wörter
+  27 Wörter · angeheftet
 
-                                    [ Alles vergessen ]
+                      [ Alles kopieren ]  [ Alles vergessen ]
 ```
 
 ## Installieren
@@ -41,6 +41,26 @@ Logsy Voice holt die neueste Veröffentlichung, packt sie nach
 `%APPDATA%\de.logsy.voice\addons\verlauf\` aus und startet sie beim
 Einschalten. Mehr ist nicht zu tun.
 
+## Was auf der Seite geht
+
+| Knopf | Was er tut |
+|---|---|
+| **In die Zwischenablage** ⧉ | Legt diesen einen Satz hinein. |
+| **Anheften** ✓ | Hält einen Satz fest. Angeheftetes zählt nicht zur eingestellten Anzahl und bleibt auch bei „Alles vergessen" stehen. |
+| **Diesen Satz vergessen** 🗑 | Nimmt ihn aus der Liste. |
+| **Alles kopieren** | Alle Sätze untereinander in die Zwischenablage. |
+| **Zurücknehmen** | Holt zurück, was der letzte Löschvorgang weggenommen hat — jeden Satz an seine alte Stelle, bis zum nächsten Diktat. |
+| **Alles vergessen** | Leert die Liste. Umkehrbar, solange nicht weitergesprochen wurde — deshalb fragt der Knopf nicht nach. |
+
+Derselbe Satz zweimal hintereinander wird zu einem Eintrag mit „2×". Das ist
+fast immer ein misslungenes Einfügen, das gerade wiederholt wurde, und zwei
+gleiche Kacheln untereinander sähen aus wie ein Fehler.
+
+Über jedem Satz steht in der ersten Stunde, wie lange er her ist, danach die
+Uhrzeit — „vor 7 Stunden" sagt niemandem, wann das war. Ein Sprachkürzel
+erscheint nur, wenn tatsächlich mehr als eine Sprache im Verlauf steht; sonst
+stünde an jedem Eintrag dasselbe.
+
 ## Wo die Sätze liegen
 
 **Im Arbeitsspeicher dieses Programms und sonst nirgends.**
@@ -49,6 +69,11 @@ Das ist eine Entscheidung, keine Auslassung. Ein Diktatverlauf auf der Platte
 überlebt den Rechnerneustart, das Zurücksetzen der Anwendung und den nächsten
 Benutzer — und niemand rechnet damit. Wer das Add-on ausschaltet oder
 Logsy Voice beendet, ist die Sätze los. Das ist die Zusage.
+
+Der Vollständigkeit halber gehören zwei Sätze dazu: Gelöschtes liegt für das
+Zurücknehmen noch bis zum nächsten Diktat im Speicher. Und „nur im
+Arbeitsspeicher" ist keine Zusage gegen Windows selbst — was ausgelagert wird,
+entscheidet das Betriebssystem, nicht dieses Programm.
 
 ## Einstellungen
 
@@ -70,21 +95,22 @@ Was es damit **nicht** tut:
 - Kein Protokoll ausser den Zeilen, die ohnehin im Protokoll von Logsy Voice
   stehen.
 
-Wer nachsehen will: Es sind rund 250 Zeilen, und `src/main.rs` enthält alles
-ausser dem Windows-Teil für die Zwischenablage.
+Wer nachsehen will: Es sind rund 900 Zeilen, davon knapp 300 Tests.
 
 ## Aufbau
 
 | Datei | Inhalt |
 |---|---|
 | `src/main.rs` | Das Gespräch mit Logsy Voice und die Seite in der Oberfläche. |
-| `src/zwischenablage.rs` | Alles, was mit Windows zu tun hat. |
+| `src/zwischenablage.rs` | Das Kopieren, von Hand über die Win32-API. |
+| `src/uhr.rs` | Die Ortszeit und die Rechnung „welcher Tag ist das". |
 | `addon.json` | Das Beschreibungsblatt: Kennung, Fassung, Seite, Einstellungen. |
 
 ## Selbst bauen
 
 ```bash
 cargo build --release
+cargo test
 ```
 
 Ausprobieren geht ohne Logsy Voice, indem man die Zeilen von Hand hineingibt —

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "verlauf",
   "name": "Verlauf",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Hebt die zuletzt diktierten Sätze auf und legt sie auf Klick in die Zwischenablage.",
   "author": "Logsy Voice",
   "entry": "logsy-voice-verlauf.exe",

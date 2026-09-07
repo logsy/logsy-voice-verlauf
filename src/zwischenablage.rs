@@ -14,17 +14,37 @@
 //! nirgends ein `GlobalFree`. Scheitert die Übergabe dagegen, gehört er noch
 //! uns, und dann muss er weg.
 
+use std::time::Duration;
+
 use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
 use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
 };
 use windows::Win32::System::Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock};
-use windows::Win32::System::Ole::CF_UNICODETEXT;
+
+/// Kennung für Unicode-Text in der Zwischenablage.
+///
+/// Von Hand statt aus `Win32_System_Ole`: Eine Zahl, die seit Windows 3.1
+/// feststeht, ist kein Grund, ein weiteres Stück der Windows-Schnittstelle
+/// mitzuübersetzen. Der Kern von Logsy Voice hält es genauso.
+const CF_UNICODETEXT: u32 = 13;
+
+/// Wie oft versucht wird, die Zwischenablage zu öffnen.
+///
+/// Sie gehört systemweit immer nur einem Prozess. Ein Passwortverwalter oder
+/// ein Zwischenablage-Verlauf greift regelmässig zu; ein einzelner
+/// Fehlversuch heisst also nicht, dass es nicht ginge — nur, dass gerade
+/// jemand anderes dran war. Acht Versuche mit 15 ms Abstand bleiben mit
+/// höchstens 105 ms weit innerhalb der Frist von 1,2 Sekunden.
+const VERSUCHE: u32 = 8;
+
+/// Pause zwischen den Versuchen.
+const PAUSE: Duration = Duration::from_millis(15);
 
 /// Legt Text in die Zwischenablage.
 ///
-/// Ein `Err` landet als Grund in der Antwort an Logsy Voice und von dort in
-/// der Oberfläche — „Kopieren ging nicht" ohne Grund wäre keine Auskunft.
+/// Ein `Err` landet als Bemerkung über der Liste und im Protokoll —
+/// „Kopieren ging nicht" ohne Grund wäre keine Auskunft.
 pub fn setzen(text: &str) -> Result<(), String> {
     // Windows erwartet UTF-16 mit abschliessender Null.
     let mut breit: Vec<u16> = text.encode_utf16().collect();
@@ -32,9 +52,7 @@ pub fn setzen(text: &str) -> Result<(), String> {
     let bytes = std::mem::size_of_val(breit.as_slice());
 
     unsafe {
-        // Ohne Fenster: Dieses Programm hat keines. Die Zwischenablage nimmt
-        // das an — der Aufrufer wird dann dem aktuellen Vorgang zugeordnet.
-        OpenClipboard(None).map_err(|e| format!("Die Zwischenablage war nicht zu öffnen: {e}"))?;
+        oeffnen()?;
 
         let ergebnis = fuellen(&breit, bytes);
 
@@ -44,6 +62,27 @@ pub fn setzen(text: &str) -> Result<(), String> {
         let _ = CloseClipboard();
         ergebnis
     }
+}
+
+/// Öffnet die Zwischenablage, notfalls im zweiten Anlauf.
+///
+/// Ohne Fenster: Dieses Programm hat keines. Die Zwischenablage nimmt das an —
+/// der Aufrufer wird dann dem aktuellen Vorgang zugeordnet.
+unsafe fn oeffnen() -> Result<(), String> {
+    let mut zuletzt = String::new();
+
+    for versuch in 0..VERSUCHE {
+        match unsafe { OpenClipboard(None) } {
+            Ok(()) => return Ok(()),
+            Err(e) => zuletzt = e.to_string(),
+        }
+
+        if versuch + 1 < VERSUCHE {
+            std::thread::sleep(PAUSE);
+        }
+    }
+
+    Err(format!("Die Zwischenablage war nicht zu öffnen: {zuletzt}"))
 }
 
 /// Der Teil zwischen Öffnen und Schliessen.
@@ -67,7 +106,7 @@ unsafe fn fuellen(breit: &[u16], bytes: usize) -> Result<(), String> {
         let _ = GlobalUnlock(block);
 
         // Ab hier gehört der Block Windows — es sei denn, das hier schlägt fehl.
-        SetClipboardData(CF_UNICODETEXT.0.into(), Some(HANDLE(block.0))).map_err(|e| {
+        SetClipboardData(CF_UNICODETEXT, Some(HANDLE(block.0))).map_err(|e| {
             let _ = GlobalFree(Some(block));
             format!("Die Zwischenablage nahm den Text nicht an: {e}")
         })?;
